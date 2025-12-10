@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
+import { HttpStatus, type INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
+import { useValidationPipe } from 'src/pipes/validation.js';
 
 describe('AppController (e2e)', () => {
     let app: INestApplication<App>;
@@ -13,6 +14,9 @@ describe('AppController (e2e)', () => {
         }).compile();
 
         app = moduleFixture.createNestApplication();
+
+        useValidationPipe(app);
+
         await app.init();
     });
 
@@ -21,5 +25,16 @@ describe('AppController (e2e)', () => {
             .get('/')
             .expect(200)
             .expect('Hello World!');
+    });
+
+    it('/user (POST)', async () => {
+        const response = await request(app.getHttpServer())
+            .post('/user')
+            .send({ name: 'a', age: 10, password: 'abCD1234!', role: 'USER' })
+            .expect(HttpStatus.BAD_REQUEST);
+
+        expect(response.body.message).toContain(
+            'Name should be at least 2 characters long',
+        );
     });
 });
