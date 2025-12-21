@@ -9,6 +9,9 @@ import { join } from 'node:path';
 import handlebars from 'handlebars';
 import { useValidationPipe } from './pipes/validation.js';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
+import pino from 'pino';
+import { isDev } from './utils/env.js';
 
 // for ESM
 const __dirname = new URL('.', import.meta.url).pathname;
@@ -17,7 +20,26 @@ async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(
         AppModule,
         new FastifyAdapter(),
+        {
+            bufferLogs: true,
+        },
     );
+
+    app.useLogger(app.get(Logger));
+
+    // pino-pretty 설정
+    const logger = pino({
+        transport: {
+            target: 'pino-pretty',
+            options: {
+                colorize: true,
+                singleLine: true,
+                translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
+            },
+        },
+    });
+
+    logger.info(`Dev Mode: ${isDev()}`);
 
     useValidationPipe(app);
 
@@ -39,22 +61,7 @@ async function bootstrap() {
         },
     });
 
-    if (process.env.NODE_ENV !== 'production') {
-        const config = new DocumentBuilder()
-            .setTitle('My Backend API')
-            .setDescription('The API description')
-            .setVersion('1.0')
-            .addBearerAuth() // JWT 토큰 인증 기능 추가
-            .build();
-
-        const document = SwaggerModule.createDocument(app, config);
-
-        SwaggerModule.setup('api-docs', app, document, {
-            swaggerOptions: {
-                persistAuthorization: true, // 새로고침 해도 토큰 유지
-            },
-        });
-    }
+    useSwaggerModule(app);
 
     app.useStaticAssets({
         root: join(__dirname, '..', 'public'),
@@ -71,3 +78,21 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error) => console.error(error));
+
+function useSwaggerModule(app: NestFastifyApplication) {
+    const config = new DocumentBuilder()
+        .setTitle('My Backend API')
+        .setDescription('The API description')
+        .setVersion('1.0')
+        .addBearerAuth() // JWT 토큰 인증 기능 추가
+        .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+
+    SwaggerModule.setup('api-docs', app, document, {
+        jsonDocumentUrl: 'swagger/openapi.json',
+        swaggerOptions: {
+            persistAuthorization: true, // 새로고침 해도 토큰 유지
+        },
+    });
+}
