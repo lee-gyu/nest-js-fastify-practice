@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 
 import { AppController } from './app.controller.js';
@@ -8,7 +9,7 @@ import { customLogLevel } from './utils/logger.js';
 
 @Module({
     imports: [
-        ApiModule,
+        ConfigModule.forRoot(),
         LoggerModule.forRoot({
             pinoHttp: {
                 customLogLevel: customLogLevel,
@@ -38,6 +39,7 @@ import { customLogLevel } from './utils/logger.js';
                 },
             },
         }),
+        ApiModule,
     ],
     controllers: [AppController],
     providers: [AppService],

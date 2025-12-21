@@ -12,6 +12,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import pino from 'pino';
 import { isDev } from './utils/env.js';
+import { ConfigService } from '@nestjs/config';
 
 // for ESM
 const __dirname = new URL('.', import.meta.url).pathname;
@@ -74,7 +75,14 @@ async function bootstrap() {
         templates: join(__dirname, '..', 'views'),
     });
 
-    await app.listen(process.env.PORT ?? 3000);
+    const port = parseInt(
+        app.get(ConfigService).get('SERVER_PORT') || '3000',
+        10,
+    );
+
+    logger.info(`Server starting on port ${port}...`);
+
+    await app.listen(port);
 }
 
 bootstrap().catch((error) => console.error(error));
@@ -87,9 +95,13 @@ function useSwaggerModule(app: NestFastifyApplication) {
         .addBearerAuth() // JWT 토큰 인증 기능 추가
         .build();
 
-    const document = SwaggerModule.createDocument(app, config);
+    const document = SwaggerModule.createDocument(app, config, {
+        include: [],
+        autoTagControllers: false,
+    });
 
     SwaggerModule.setup('api-docs', app, document, {
+        swaggerUiEnabled: isDev(),
         jsonDocumentUrl: 'swagger/openapi.json',
         swaggerOptions: {
             persistAuthorization: true, // 새로고침 해도 토큰 유지
